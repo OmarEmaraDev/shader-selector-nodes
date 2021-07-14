@@ -242,7 +242,7 @@ class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
         if len(self.imageItems) == 0:
             return
 
-        vectorIsLinked = self.inputs["Vector"].is_linked
+        vectorIsLinked = any(link.inputName == "Vector" for link in self.inputLinks)
 
         if len(self.imageItems) == 1:
             imageNode = nodes.new("ShaderNodeTexImage")
