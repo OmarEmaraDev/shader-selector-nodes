@@ -188,6 +188,8 @@ class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
         vectorSocket.hide_value = True
         if self.selectionType == "INDEX":
             self.node_tree.inputs.new("NodeSocketInt", "Index")
+        else:
+            self.node_tree.inputs.new("NodeSocketInt", "Seed")
 
     def addNodes(self):
         nodes = self.node_tree.nodes
@@ -222,9 +224,17 @@ class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
                 geometryNode = nodes.new("ShaderNodeNewGeometry")
                 randomSocket = geometryNode.outputs["Random Per Island"]
 
+            combineXYZNode = nodes.new("ShaderNodeCombineXYZ")
+            links.new(combineXYZNode.inputs["X"], randomSocket)
+            links.new(combineXYZNode.inputs["Y"], inputs["Seed"])
+
+            whiteNoiseNode = nodes.new("ShaderNodeTexWhiteNoise")
+            whiteNoiseNode.noise_dimensions = "2D"
+            links.new(whiteNoiseNode.inputs["Vector"], combineXYZNode.outputs["Vector"])
+
             multiplyNode = nodes.new("ShaderNodeMath")
             multiplyNode.operation = "MULTIPLY"
-            links.new(multiplyNode.inputs[0], randomSocket)
+            links.new(multiplyNode.inputs[0], whiteNoiseNode.outputs["Value"])
             multiplyNode.inputs[1].default_value = len(self.imageItems)
             indexSocket = multiplyNode.outputs["Value"]
 
