@@ -171,7 +171,8 @@ class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
         self.node_tree.outputs.new("NodeSocketColor", "Color")
 
     def addInputs(self):
-        self.node_tree.inputs.new("NodeSocketVector", "Vector")
+        vectorSocket = self.node_tree.inputs.new("NodeSocketVector", "Vector")
+        vectorSocket.hide_value = True
         if self.selectionType == "INDEX":
             self.node_tree.inputs.new("NodeSocketInt", "Index")
 
