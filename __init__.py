@@ -33,10 +33,15 @@ bl_info = {
 import bpy
 from bpy.props import *
 
+def updateNodeTree(self, context):
+    node = context.active_node.id_data.nodes[self.nodeName]
+    node.updateNodeTree()
+
 class ImageListItem(bpy.types.PropertyGroup):
     bl_idname = "SSN_ImageListItem"
 
-    image: PointerProperty(type = bpy.types.Image)
+    image: PointerProperty(type = bpy.types.Image, update = updateNodeTree)
+    nodeName: StringProperty()
 
 class ImageUIList(bpy.types.UIList):
     bl_idname = "SSN_UL_ImageUIList"
@@ -61,7 +66,8 @@ class AddImage(BaseOperator):
 
     def execute(self, context):
         node = self.getNode(context)
-        node.imageItems.add()
+        item = node.imageItems.add()
+        item.nodeName = self.nodeName
         node.updateNodeTree()
         return{'FINISHED'}
 
@@ -87,6 +93,7 @@ class BrowseImages(BaseOperator):
             image = bpy.data.images.load(self.directory + imageFile.name,  check_existing = True)
             item = imageItems.add()
             item.image = image
+            item.nodeName = self.nodeName
         node.updateNodeTree()
         return{'FINISHED'}
 
