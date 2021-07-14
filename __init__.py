@@ -35,7 +35,9 @@ from bpy.props import *
 from dataclasses import dataclass
 
 def updateNodeTree(self, context):
-    node = context.active_node.id_data.nodes[self.nodeName]
+    nodes = context.active_node.id_data.nodes
+    if self.nodeName not in nodes: return
+    node = nodes[self.nodeName]
     node.updateNodeTree()
 
 class ImageListItem(bpy.types.PropertyGroup):
@@ -63,29 +65,29 @@ class BaseOperator(bpy.types.Operator):
 class AddImage(BaseOperator):
     bl_idname = "ssn.add_image"
     bl_label = "Add"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         node = self.getNode(context)
         item = node.imageItems.add()
         item.nodeName = self.nodeName
         node.updateNodeTree()
-        return{'FINISHED'}
+        return{"FINISHED"}
 
 class BrowseImages(BaseOperator):
     bl_idname = "ssn.browse_images"
     bl_label = "Browse"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
     
-    filter_image: BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
-    filter_folder: BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
+    filter_image: BoolProperty(default=True, options={"HIDDEN", "SKIP_SAVE"})
+    filter_folder: BoolProperty(default=True, options={"HIDDEN", "SKIP_SAVE"})
     directory: StringProperty(subtype = "DIR_PATH")
     files: CollectionProperty(type = bpy.types.OperatorFileListElement,
-                              options = {'HIDDEN', 'SKIP_SAVE'})
+                              options = {"HIDDEN", "SKIP_SAVE"})
 
     def invoke(self, context, _event):
         context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
+        return {"RUNNING_MODAL"}
 
     def execute(self, context):
         node = self.getNode(context)
@@ -96,23 +98,23 @@ class BrowseImages(BaseOperator):
             item.image = image
             item.nodeName = self.nodeName
         node.updateNodeTree()
-        return{'FINISHED'}
+        return {"FINISHED"}
 
 class ClearImages(BaseOperator):
     bl_idname = "ssn.clear_images"
     bl_label = "Clear"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         node = self.getNode(context)
         node.imageItems.clear()
         node.updateNodeTree()
-        return{'FINISHED'}
+        return {"FINISHED"}
 
 class RemoveImage(BaseOperator):
     bl_idname = "ssn.remove_image"
     bl_label = "Remove"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         node = self.getNode(context)
@@ -120,7 +122,35 @@ class RemoveImage(BaseOperator):
         if node.activeImageIndex == len(node.imageItems) and node.activeImageIndex != 0:
             node.activeImageIndex -= 1
         node.updateNodeTree()
-        return{'FINISHED'}
+        return {"FINISHED"}
+
+class MoveImageUp(BaseOperator):
+    bl_idname = "ssn.move_image_up"
+    bl_label = "Move Up"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        node = self.getNode(context)
+        if (node.activeImageIndex == 0): return {"FINISHED"}
+        newIndex = node.activeImageIndex - 1
+        node.imageItems.move(newIndex, node.activeImageIndex)
+        node.activeImageIndex = newIndex
+        node.updateNodeTree()
+        return {"FINISHED"}
+
+class MoveImageDown(BaseOperator):
+    bl_idname = "ssn.move_image_down"
+    bl_label = "Move Down"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        node = self.getNode(context)
+        newIndex = node.activeImageIndex + 1
+        if (newIndex >= len(node.imageItems)): return {"FINISHED"}
+        node.imageItems.move(newIndex, node.activeImageIndex)
+        node.activeImageIndex = newIndex
+        node.updateNodeTree()
+        return {"FINISHED"}
 
 selectionTypeItems = [
     ("INDEX", "Index", "", "NONE", 0),
@@ -151,17 +181,25 @@ class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "selectionType", text = "")
-        layout.template_list(ImageUIList.bl_idname, "", self, "imageItems", self, "activeImageIndex")
+
         col = layout.column(align = True)
+
+        col.template_list(ImageUIList.bl_idname, "", self, "imageItems", self, "activeImageIndex")
+
         row = col.row(align = True)
         properties = row.operator(AddImage.bl_idname)
         properties.nodeName = self.name
         properties = row.operator(BrowseImages.bl_idname)
         properties.nodeName = self.name
+
         row = col.row(align = True)
-        properties = row.operator(RemoveImage.bl_idname)
-        properties.nodeName = self.name
         properties = row.operator(ClearImages.bl_idname)
+        properties.nodeName = self.name
+        properties = row.operator(MoveImageUp.bl_idname, text = "", icon = "TRIA_UP")
+        properties.nodeName = self.name
+        properties = row.operator(MoveImageDown.bl_idname, text = "", icon = "TRIA_DOWN")
+        properties.nodeName = self.name
+        properties = row.operator(RemoveImage.bl_idname, text = "", icon = "X")
         properties.nodeName = self.name
 
     def init(self, context):
@@ -315,6 +353,8 @@ def register():
     bpy.utils.register_class(BrowseImages)
     bpy.utils.register_class(ClearImages)
     bpy.utils.register_class(RemoveImage)
+    bpy.utils.register_class(MoveImageUp)
+    bpy.utils.register_class(MoveImageDown)
     bpy.utils.register_class(ImageSelectorShaderNode)
     bpy.types.NODE_MT_category_SH_NEW_TEXTURE.append(drawMenu)
  
@@ -325,6 +365,8 @@ def unregister():
     bpy.utils.unregister_class(BrowseImages)
     bpy.utils.unregister_class(ClearImages)
     bpy.utils.unregister_class(RemoveImage)
+    bpy.utils.unregister_class(MoveImageUp)
+    bpy.utils.unregister_class(MoveImageDown)
     bpy.utils.unregister_class(ImageSelectorShaderNode)
     bpy.types.NODE_MT_category_SH_NEW_TEXTURE.remove(drawMenu)
 
