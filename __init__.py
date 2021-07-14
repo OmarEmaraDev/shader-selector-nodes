@@ -32,6 +32,7 @@ bl_info = {
 
 import bpy
 from bpy.props import *
+from dataclasses import dataclass
 
 def updateNodeTree(self, context):
     node = context.active_node.id_data.nodes[self.nodeName]
@@ -127,6 +128,16 @@ selectionTypeItems = [
     ("RANDOM_PER_ISLAND", "Random Per Island", "", "NONE", 2),
 ]
 
+@dataclass
+class InputLink:
+    inputName: str
+    fromSocket: bpy.types.NodeSocket
+
+@dataclass
+class OutputLink:
+    outputName: str
+    toSocket: bpy.types.NodeSocket
+
 class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
     bl_idname = "SSN_ImageSelectorShaderNode"
     bl_label = "Image Selector"
@@ -162,10 +173,12 @@ class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
             bpy.data.node_groups.remove(self.node_tree, do_unlink = True)
 
     def updateNodeTree(self):
+        self.storeLinks()
         self.clearNodeTree()
         self.addInputs()
         self.addOutputs()
         self.addNodes()
+        self.restoreLinks()
 
     def addOutputs(self):
         self.node_tree.outputs.new("NodeSocketColor", "Color")
@@ -254,6 +267,30 @@ class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
         self.node_tree.outputs.clear()
         self.node_tree.links.clear()
         self.node_tree.nodes.clear()
+
+    def storeLinks(self):
+        self.inputLinks = []
+        for socket in self.inputs:
+            if not socket.is_linked: continue
+            for link in socket.links:
+                self.inputLinks.append(InputLink(socket.name, link.from_socket))
+
+        self.outputLinks = []
+        for socket in self.outputs:
+            if not socket.is_linked: continue
+            for link in socket.links:
+                self.outputLinks.append(OutputLink(socket.name, link.to_socket))
+
+    def restoreLinks(self):
+        links = self.id_data.links
+
+        for inputLink in self.inputLinks:
+            if inputLink.inputName not in self.inputs: continue
+            links.new(self.inputs[inputLink.inputName], inputLink.fromSocket)
+
+        for outputLink in self.outputLinks:
+            if outputLink.outputName not in self.outputs: continue
+            links.new(outputLink.toSocket, self.outputs[outputLink.outputName])
 
 def drawMenu(self, context):
     self.layout.separator()
