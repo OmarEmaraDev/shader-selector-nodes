@@ -176,6 +176,8 @@ class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
     activeImageIndex: IntProperty()
     imageItems: CollectionProperty(type = ImageListItem)
 
+    vectorWasLinked: BoolProperty()
+
     selectionType: EnumProperty(name = "Selection Type", items = selectionTypeItems,
                                 update = lambda self, context : self.updateNodeTree())
 
@@ -345,6 +347,17 @@ def drawMenu(self, context):
     operator = self.layout.operator("node.add_node", text = "Image Selector")
     operator.type = ImageSelectorShaderNode.bl_idname
     operator.use_transform = True
+
+@bpy.app.handlers.persistent
+def onDepsgraphUpdate(scene, depsgraph):
+    for update in depsgraph.updates:
+        if not isinstance(update.id, bpy.types.ShaderNodeTree): continue
+        for node in update.id.original.nodes:
+            if not isinstance(node, ImageSelectorShaderNode): continue
+            vectorIsLinked = node.inputs["Vector"].is_linked
+            if node.vectorWasLinked != vectorIsLinked:
+                node.vectorWasLinked = vectorIsLinked
+                node.updateNodeTree()
  
 def register():
     bpy.utils.register_class(ImageListItem)
@@ -357,6 +370,7 @@ def register():
     bpy.utils.register_class(MoveImageDown)
     bpy.utils.register_class(ImageSelectorShaderNode)
     bpy.types.NODE_MT_category_SH_NEW_TEXTURE.append(drawMenu)
+    bpy.app.handlers.depsgraph_update_post.append(onDepsgraphUpdate)
  
 def unregister():
     bpy.utils.unregister_class(ImageListItem)
@@ -369,6 +383,7 @@ def unregister():
     bpy.utils.unregister_class(MoveImageDown)
     bpy.utils.unregister_class(ImageSelectorShaderNode)
     bpy.types.NODE_MT_category_SH_NEW_TEXTURE.remove(drawMenu)
+    bpy.app.handlers.depsgraph_update_post.remove(onDepsgraphUpdate)
 
 if __name__ == "__main__":
     register()
