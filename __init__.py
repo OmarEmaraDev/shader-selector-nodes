@@ -205,14 +205,32 @@ class ImageSelectorShaderNode(bpy.types.ShaderNodeCustomGroup):
         properties.nodeName = self.name
 
     def init(self, context):
-        self.node_tree = bpy.data.node_groups.new(f"{self.name}_internal_node_tree", "ShaderNodeTree")
+        self.updateNodeTree()
+
+    def update(self):
+        if "Vector" not in self.inputs: return
+        vectorIsLinked = self.inputs["Vector"].is_linked
+        if self.vectorWasLinked != vectorIsLinked:
+            self.vectorWasLinked = vectorIsLinked
+            self.updateNodeTree()
+
+    def copy(self, sourceNode):
         self.updateNodeTree()
 
     def free(self):
-        if self.node_tree.users == 1:
-            bpy.data.node_groups.remove(self.node_tree, do_unlink = True)
+        bpy.data.node_groups.remove(self.node_tree, do_unlink = True)
+
+    def getNodeGroupName(self):
+        return f"{self.name}_internal_node_tree"
+
+    def updateNodeGroup(self):
+        if self.getNodeGroupName() in bpy.data.node_groups:
+            self.node_tree = bpy.data.node_groups[self.getNodeGroupName()]
+        else:
+            self.node_tree = bpy.data.node_groups.new(self.getNodeGroupName(), "ShaderNodeTree")
 
     def updateNodeTree(self):
+        self.updateNodeGroup()
         self.storeLinks()
         self.clearNodeTree()
         self.addInputs()
@@ -348,17 +366,6 @@ def drawMenu(self, context):
     operator.type = ImageSelectorShaderNode.bl_idname
     operator.use_transform = True
 
-@bpy.app.handlers.persistent
-def onDepsgraphUpdate(scene, depsgraph):
-    for update in depsgraph.updates:
-        if not isinstance(update.id, bpy.types.ShaderNodeTree): continue
-        for node in update.id.original.nodes:
-            if not isinstance(node, ImageSelectorShaderNode): continue
-            vectorIsLinked = node.inputs["Vector"].is_linked
-            if node.vectorWasLinked != vectorIsLinked:
-                node.vectorWasLinked = vectorIsLinked
-                node.updateNodeTree()
- 
 def register():
     bpy.utils.register_class(ImageListItem)
     bpy.utils.register_class(ImageUIList)
@@ -370,7 +377,6 @@ def register():
     bpy.utils.register_class(MoveImageDown)
     bpy.utils.register_class(ImageSelectorShaderNode)
     bpy.types.NODE_MT_category_SH_NEW_TEXTURE.append(drawMenu)
-    bpy.app.handlers.depsgraph_update_post.append(onDepsgraphUpdate)
  
 def unregister():
     bpy.utils.unregister_class(ImageListItem)
@@ -383,7 +389,6 @@ def unregister():
     bpy.utils.unregister_class(MoveImageDown)
     bpy.utils.unregister_class(ImageSelectorShaderNode)
     bpy.types.NODE_MT_category_SH_NEW_TEXTURE.remove(drawMenu)
-    bpy.app.handlers.depsgraph_update_post.remove(onDepsgraphUpdate)
 
 if __name__ == "__main__":
     register()
