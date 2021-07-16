@@ -35,7 +35,7 @@ from bpy.props import *
 from dataclasses import dataclass
 
 def updateNodeTree(self, context):
-    nodes = context.active_node.id_data.nodes
+    nodes = context.space_data.node_tree.nodes
     if self.nodeName not in nodes: return
     node = nodes[self.nodeName]
     node.updateNodeTree()
@@ -60,7 +60,7 @@ class BaseOperator(bpy.types.Operator):
     nodeName: StringProperty()
 
     def getNode(self, context):
-        return context.active_node.id_data.nodes[self.nodeName]
+        return context.space_data.node_tree.nodes[self.nodeName]
 
 class AddImage(BaseOperator):
     bl_idname = "ssn.add_image"
